@@ -1,13 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
+interface CacheEntry {
+  data: unknown;
+  timestamp: number;
+}
+
+interface PriceData {
+  date: string;
+  close?: number;
+  price?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
+}
+
+interface ProcessedChartData {
+  timestamp: number;
+  date: string;
+  price: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  timeFormat: string;
+  fullDate: string;
+}
+
+interface HistoricalPriceResponse {
+  historical: PriceData[];
+}
+
 // Add rate limiting with simple in-memory cache
-const cache = new Map();
+const cache = new Map<string, CacheEntry>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const lastRequestTime = new Map();
+const lastRequestTime = new Map<string, number>();
 const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests for FMP
 
-async function rateLimitedRequest(url: string, params: any) {
+async function rateLimitedRequest(url: string, params: Record<string, string | number>) {
   const cacheKey = `${url}-${JSON.stringify(params)}`;
   const now = Date.now();
   
@@ -39,8 +71,8 @@ async function rateLimitedRequest(url: string, params: any) {
     });
     
     return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 429) {
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 429) {
       console.log('Rate limit hit, waiting 5 seconds...');
       await new Promise(resolve => setTimeout(resolve, 5000));
       // Retry once after waiting
@@ -118,7 +150,7 @@ function createUTCTimestamp(dateString: string, isIntraday = false): number {
 }
 
 // Helper function to fetch intraday data with extended range
-async function fetchIntradayData(fmpSymbol: string, apiKey: string) {
+async function fetchIntradayData(fmpSymbol: string, apiKey: string): Promise<PriceData[]> {
   console.log(`Fetching extended intraday data for ${fmpSymbol}`);
   
   // Try different endpoints with longer ranges
@@ -142,7 +174,7 @@ async function fetchIntradayData(fmpSymbol: string, apiKey: string) {
         const now = new Date();
         const daysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days back
         
-        const filteredData = response
+        const filteredData = (response as PriceData[])
           .filter(item => {
             const itemDate = new Date(item.date);
             return itemDate >= daysAgo && itemDate <= now;
@@ -155,10 +187,10 @@ async function fetchIntradayData(fmpSymbol: string, apiKey: string) {
         }
         
         // If filtered data is too small, return more recent data
-        return response.slice(0, 100);
+        return (response as PriceData[]).slice(0, 100);
       }
-    } catch (error: any) {
-      console.log(`Intraday endpoint ${endpoint} failed:`, error.message);
+    } catch (error: unknown) {
+      console.log(`Intraday endpoint ${endpoint} failed:`, error instanceof Error ? error.message : 'Unknown error');
       continue;
     }
   }
@@ -167,7 +199,7 @@ async function fetchIntradayData(fmpSymbol: string, apiKey: string) {
 }
 
 // Helper function to fetch EOD data with extended range
-async function fetchEODData(fmpSymbol: string, apiKey: string, days: number) {
+async function fetchEODData(fmpSymbol: string, apiKey: string, days: number): Promise<PriceData[]> {
   console.log(`Fetching extended EOD data for ${fmpSymbol}, requested: ${days} days`);
   
   // Multiply the requested days to get more historical data
@@ -194,12 +226,12 @@ async function fetchEODData(fmpSymbol: string, apiKey: string, days: number) {
     
     const response = await rateLimitedRequest(url, params);
     
-    if (response?.historical && Array.isArray(response.historical)) {
-      console.log(`Retrieved ${response.historical.length} historical data points`);
-      return response.historical;
+    if ((response as HistoricalPriceResponse)?.historical && Array.isArray((response as HistoricalPriceResponse).historical)) {
+      console.log(`Retrieved ${(response as HistoricalPriceResponse).historical.length} historical data points`);
+      return (response as HistoricalPriceResponse).historical;
     }
-  } catch (error: any) {
-    console.log('Historical-price-full failed:', error.message);
+  } catch (error: unknown) {
+    console.log('Historical-price-full failed:', error instanceof Error ? error.message : 'Unknown error');
   }
 
   // Fallback to historical-chart/1day
@@ -212,17 +244,17 @@ async function fetchEODData(fmpSymbol: string, apiKey: string, days: number) {
     if (Array.isArray(fallbackResponse) && fallbackResponse.length > 0) {
       // Don't filter by date range for fallback - get as much as possible
       console.log(`Retrieved ${fallbackResponse.length} fallback data points`);
-      return fallbackResponse.slice(0, 365); // Get up to 1 year of data
+      return (fallbackResponse as PriceData[]).slice(0, 365); // Get up to 1 year of data
     }
-  } catch (error: any) {
-    console.log('Fallback EOD endpoint failed:', error.message);
+  } catch (error: unknown) {
+    console.log('Fallback EOD endpoint failed:', error instanceof Error ? error.message : 'Unknown error');
   }
   
   throw new Error('All EOD endpoints failed');
 }
 
 // Helper function to process data with smart sampling
-function processChartData(rawData: any[], days: number, isIntraday = false) {
+function processChartData(rawData: PriceData[], days: number, isIntraday = false): ProcessedChartData[] {
   const validData = rawData
     .filter(item => {
       // Validate required fields
@@ -319,7 +351,7 @@ export async function GET(request: NextRequest) {
       const fmpSymbol = convertToFMPSymbol(id);
       console.log(`Fetching extended ${days} days of data for ${id} (${fmpSymbol}) from FMP`);
       
-      let rawData: any[] = [];
+      let rawData: PriceData[] = [];
       let isIntraday = false;
       let dataSource = '';
 
@@ -404,11 +436,11 @@ export async function GET(request: NextRequest) {
       console.log(`Processed ${chartData.length} chart data points spanning ${actualDays} days for lightweight-charts v5`);
       return NextResponse.json(responseData);
 
-    } catch (apiError: any) {
-      console.error('FMP API Error:', apiError.response?.data || apiError.message);
+    } catch (apiError: unknown) {
+      console.error('FMP API Error:', axios.isAxiosError(apiError) ? apiError.response?.data || apiError.message : apiError);
       
       // Handle specific error cases
-      if (apiError.response?.status === 429) {
+      if (axios.isAxiosError(apiError) && apiError.response?.status === 429) {
         return NextResponse.json({ 
           error: 'Rate limit exceeded. Please try again in a few moments.',
           retryAfter: 60,
@@ -421,14 +453,14 @@ export async function GET(request: NextRequest) {
         });
       }
       
-      if (apiError.response?.status === 401) {
+      if (axios.isAxiosError(apiError) && apiError.response?.status === 401) {
         return NextResponse.json({ 
           error: 'Invalid API key for Financial Modeling Prep',
           suggestion: 'Please check your FMP_API_KEY in environment variables'
         }, { status: 401 });
       }
       
-      if (apiError.response?.status === 404) {
+      if (axios.isAxiosError(apiError) && apiError.response?.status === 404) {
         return NextResponse.json({ 
           error: 'Cryptocurrency not found on FMP',
           id,
@@ -438,19 +470,19 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json({ 
         error: 'Failed to fetch data from FMP API',
-        details: apiError.response?.data || apiError.message,
-        status: apiError.response?.status,
+        details: axios.isAxiosError(apiError) ? apiError.response?.data || apiError.message : 'Unknown error',
+        status: axios.isAxiosError(apiError) ? apiError.response?.status : 500,
         id,
         days,
         source: 'FMP'
       }, { status: 500 });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching crypto history:', error);
     return NextResponse.json({ 
       error: 'Internal server error',
-      message: error.message 
+      message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }

@@ -1,6 +1,47 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
+// Define types for better type safety
+interface StockResult {
+  symbol: string;
+  description: string;
+  type: string;
+  displaySymbol: string;
+  logo: string;
+}
+
+interface CryptoResult {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  marketCapRank: number;
+}
+
+interface SearchResults {
+  stocks: StockResult[];
+  crypto: CryptoResult[];
+}
+
+interface FinnhubStock {
+  symbol: string;
+  description: string;
+  type: string;
+  displaySymbol: string;
+}
+
+interface FMPProfile {
+  image?: string;
+}
+
+interface CoinGeckoCoin {
+  id: string;
+  symbol: string;
+  name: string;
+  large: string;
+  market_cap_rank: number;
+}
+
 const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
 const FMP_KEY = process.env.FMP_API_KEY;
 
@@ -14,22 +55,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results: {
-      stocks: {
-        symbol: string;
-        description: string;
-        type: string;
-        displaySymbol: string;
-        logo: string;
-      }[];
-      crypto: {
-        id: string;
-        symbol: string;
-        name: string;
-        image: string;
-        marketCapRank: number;
-      }[];
-    } = {
+    const results: SearchResults = {
       stocks: [],
       crypto: []
     };
@@ -41,10 +67,10 @@ export async function GET(request: Request) {
           `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${FINNHUB_KEY}`
         );
 
-        const rawResults: any[] = stockResponse.data.result ?? [];
+        const rawResults: FinnhubStock[] = stockResponse.data.result ?? [];
 
         // 🔁 Filter unique symbols (hindari duplikat symbol seperti HOOD)
-        const uniqueStockMap = new Map<string, any>();
+        const uniqueStockMap = new Map<string, FinnhubStock>();
         rawResults.forEach((stock) => {
           if (stock.symbol && !uniqueStockMap.has(stock.symbol)) {
             uniqueStockMap.set(stock.symbol, stock);
@@ -55,17 +81,27 @@ export async function GET(request: Request) {
 
         // Ambil logo dari FMP untuk tiap symbol
         results.stocks = await Promise.all(
-          uniqueStocks.map(async (stock: any) => {
+          uniqueStocks.map(async (stock: FinnhubStock) => {
             let logo = '';
 
-            try {
-              const fmp = await axios.get(
-                `https://financialmodelingprep.com/api/v3/profile/${stock.symbol}?apikey=${FMP_KEY}`
-              );
-              logo = fmp.data?.[0]?.image || '';
-            } catch (e) {
-              console.warn(`⚠️ Failed to fetch FMP logo for ${stock.symbol}`);
-            }
+           try {
+  const fmpRes = await axios.get(
+    `https://financialmodelingprep.com/api/v3/profile/${stock.symbol}?apikey=${FMP_KEY}`
+  );
+
+  if (Array.isArray(fmpRes.data) && fmpRes.data[0]?.image) {
+    logo = fmpRes.data[0].image;
+  } else {
+    console.warn(`🟡 No logo found for ${stock.symbol} (allowed no-image)`);
+  }
+} catch (err: any) {
+  if (axios.isAxiosError(err) && err.response?.status === 403) {
+    console.warn(`🔒 FMP 403: Access denied for ${stock.symbol}`);
+  } else {
+    console.warn(`⚠️ Error fetching logo for ${stock.symbol}:`, err.message);
+  }
+}
+
 
             return {
               symbol: stock.symbol,
@@ -88,9 +124,10 @@ export async function GET(request: Request) {
           `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(query)}`
         );
 
-        results.crypto = cryptoResponse.data.coins
+        const coins = cryptoResponse.data.coins as CoinGeckoCoin[];
+        results.crypto = coins
           ?.slice(0, 5)
-          .map((coin: any) => ({
+          .map((coin: CoinGeckoCoin) => ({
             id: coin.id,
             symbol: coin.symbol.toUpperCase(),
             name: coin.name,

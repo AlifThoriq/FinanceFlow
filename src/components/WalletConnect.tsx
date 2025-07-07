@@ -1,14 +1,12 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { 
   Wallet, 
-  CheckCircle, 
-  XCircle, 
-  Loader2,
-  ExternalLink,
-  Download
+  ArrowRight,
+  Shield,
+  Zap
 } from 'lucide-react';
 
 interface WalletOption {
@@ -16,16 +14,11 @@ interface WalletOption {
   name: string;
   icon: string;
   color: string;
-  downloadUrl: string; // URL untuk download wallet
-  detect: () => boolean;
-  connect: () => Promise<{ success: boolean; address?: string; error?: string }>;
+  description: string;
 }
 
 export const WalletConnect: React.FC = () => {
   const router = useRouter();
-  const [connectedWallets, setConnectedWallets] = useState<string[]>([]);
-  const [connectingWallet, setConnectingWallet] = useState<string | null>(null);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const wallets: WalletOption[] = [
     {
@@ -33,254 +26,59 @@ export const WalletConnect: React.FC = () => {
       name: 'MetaMask',
       icon: '🦊',
       color: 'orange',
-      downloadUrl: 'https://metamask.io/download/',
-      detect: () => typeof window !== 'undefined' && !!(window as any).ethereum?.isMetaMask,
-      connect: async () => {
-        try {
-          if (!(window as any).ethereum?.isMetaMask) {
-            return { success: false, error: 'MetaMask not detected' };
-          }
-          
-          const accounts = await (window as any).ethereum.request({
-            method: 'eth_requestAccounts',
-          });
-          
-          return { success: true, address: accounts[0] };
-        } catch (error: any) {
-          return { 
-            success: false, 
-            error: error.code === 4001 ? 'User rejected connection' : 'Connection failed' 
-          };
-        }
-      }
+      description: 'Most popular Ethereum wallet'
     },
     {
       id: 'phantom',
       name: 'Phantom',
       icon: '👻',
       color: 'purple',
-      downloadUrl: 'https://phantom.app/',
-      detect: () => typeof window !== 'undefined' && !!(window as any).phantom?.solana,
-      connect: async () => {
-        try {
-          if (!(window as any).phantom?.solana) {
-            return { success: false, error: 'Phantom wallet not detected' };
-          }
-          
-          const response = await (window as any).phantom.solana.connect();
-          return { success: true, address: response.publicKey.toString() };
-        } catch (error: any) {
-          return { 
-            success: false, 
-            error: error.code === 4001 ? 'User rejected connection' : 'Connection failed' 
-          };
-        }
-      }
+      description: 'Leading Solana wallet'
     },
     {
       id: 'coinbase',
       name: 'Coinbase Wallet',
       icon: '🔵',
       color: 'blue',
-      downloadUrl: 'https://www.coinbase.com/wallet',
-      detect: () => typeof window !== 'undefined' && !!(window as any).ethereum?.isCoinbaseWallet,
-      connect: async () => {
-        try {
-          if (!(window as any).ethereum?.isCoinbaseWallet) {
-            return { success: false, error: 'Coinbase Wallet not detected' };
-          }
-          
-          const accounts = await (window as any).ethereum.request({
-            method: 'eth_requestAccounts',
-          });
-          
-          return { success: true, address: accounts[0] };
-        } catch (error: any) {
-          return { 
-            success: false, 
-            error: error.code === 4001 ? 'User rejected connection' : 'Connection failed' 
-          };
-        }
-      }
+      description: 'Secure & user-friendly'
     },
     {
       id: 'trust',
       name: 'Trust Wallet',
       icon: '🛡️',
       color: 'cyan',
-      downloadUrl: 'https://trustwallet.com/',
-      detect: () => typeof window !== 'undefined' && !!(window as any).ethereum?.isTrust,
-      connect: async () => {
-        try {
-          if (!(window as any).ethereum?.isTrust) {
-            return { success: false, error: 'Trust Wallet not detected' };
-          }
-          
-          const accounts = await (window as any).ethereum.request({
-            method: 'eth_requestAccounts',
-          });
-          
-          return { success: true, address: accounts[0] };
-        } catch (error: any) {
-          return { 
-            success: false, 
-            error: error.code === 4001 ? 'User rejected connection' : 'Connection failed' 
-          };
-        }
-      }
+      description: 'Multi-chain mobile wallet'
     },
     {
       id: 'binance',
       name: 'Binance Chain Wallet',
       icon: '🟡',
       color: 'yellow',
-      downloadUrl: 'https://www.binance.org/en/binance-wallet',
-      detect: () => typeof window !== 'undefined' && !!(window as any).BinanceChain,
-      connect: async () => {
-        try {
-          if (!(window as any).BinanceChain) {
-            return { success: false, error: 'Binance Chain Wallet not detected' };
-          }
-          
-          const accounts = await (window as any).BinanceChain.request({
-            method: 'eth_requestAccounts',
-          });
-          
-          return { success: true, address: accounts[0] };
-        } catch (error: any) {
-          return { 
-            success: false, 
-            error: error.code === 4001 ? 'User rejected connection' : 'Connection failed' 
-          };
-        }
-      }
+      description: 'BSC ecosystem wallet'
     },
     {
       id: 'walletconnect',
       name: 'WalletConnect',
       icon: '🔗',
       color: 'indigo',
-      downloadUrl: 'https://walletconnect.com/',
-      detect: () => true, // WalletConnect is always available
-      connect: async () => {
-        try {
-          // Simplified WalletConnect simulation
-          // In real implementation, you'd use @walletconnect/client
-          return { success: true, address: '0x' + Math.random().toString(16).substr(2, 40) };
-        } catch (error: any) {
-          return { success: false, error: 'WalletConnect failed' };
-        }
-      }
+      description: 'Connect any wallet'
     }
   ];
 
-  // Load connected wallets from localStorage (only in browser)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('connectedWallets');
-      if (saved) {
-        setConnectedWallets(JSON.parse(saved));
-      }
-    }
-  }, []);
-
-  // Save connected wallets to localStorage
-  const saveConnectedWallets = (wallets: string[]) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('connectedWallets', JSON.stringify(wallets));
-    }
-    setConnectedWallets(wallets);
+  const handleConnectWallet = () => {
+    router.push('/wallet');
   };
 
-  const handleConnect = async (wallet: WalletOption) => {
-    setConnectingWallet(wallet.id);
-    setErrors({ ...errors, [wallet.id]: '' });
-
-    try {
-      const result = await wallet.connect();
-      
-      if (result.success) {
-        const newConnectedWallets = [...connectedWallets, wallet.id];
-        saveConnectedWallets(newConnectedWallets);
-        
-        // Save wallet details
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(`wallet_${wallet.id}`, JSON.stringify({
-            name: wallet.name,
-            address: result.address,
-            connectedAt: new Date().toISOString()
-          }));
-        }
-        
-        // Redirect to wallet page after successful connection
-        setTimeout(() => {
-          router.push('/wallet');
-        }, 1000);
-      } else {
-        setErrors({ ...errors, [wallet.id]: result.error || 'Connection failed' });
-      }
-    } catch (error) {
-      setErrors({ ...errors, [wallet.id]: 'Unexpected error occurred' });
-    } finally {
-      setConnectingWallet(null);
-    }
-  };
-
-  const handleWalletAction = (wallet: WalletOption) => {
-    const isConnected = connectedWallets.includes(wallet.id);
-    const isDetected = wallet.detect();
-
-    if (isConnected) {
-      // Disconnect wallet
-      handleDisconnect(wallet.id);
-    } else if (isDetected) {
-      // Connect wallet
-      handleConnect(wallet);
-    } else {
-      // Redirect to download page
-      window.open(wallet.downloadUrl, '_blank');
-    }
-  };
-
-  const handleDisconnect = (walletId: string) => {
-    const newConnectedWallets = connectedWallets.filter(id => id !== walletId);
-    saveConnectedWallets(newConnectedWallets);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(`wallet_${walletId}`);
-    }
-    setErrors({ ...errors, [walletId]: '' });
-  };
-
-  const getColorClasses = (color: string, isConnected: boolean) => {
-    const baseClasses = {
-      orange: isConnected ? 'bg-orange-600 hover:bg-orange-700 border-orange-500' : 'bg-gray-700 hover:bg-gray-600 border-gray-600',
-      purple: isConnected ? 'bg-purple-600 hover:bg-purple-700 border-purple-500' : 'bg-gray-700 hover:bg-gray-600 border-gray-600',
-      blue: isConnected ? 'bg-blue-600 hover:bg-blue-700 border-blue-500' : 'bg-gray-700 hover:bg-gray-600 border-gray-600',
-      cyan: isConnected ? 'bg-cyan-600 hover:bg-cyan-700 border-cyan-500' : 'bg-gray-700 hover:bg-gray-600 border-gray-600',
-      yellow: isConnected ? 'bg-yellow-600 hover:bg-yellow-700 border-yellow-500' : 'bg-gray-700 hover:bg-gray-600 border-gray-600',
-      indigo: isConnected ? 'bg-indigo-600 hover:bg-indigo-700 border-indigo-500' : 'bg-gray-700 hover:bg-gray-600 border-gray-600',
+  const getColorClasses = (color: string) => {
+    const colorMap = {
+      orange: 'border-orange-500/30 bg-orange-500/10',
+      purple: 'border-purple-500/30 bg-purple-500/10',
+      blue: 'border-blue-500/30 bg-blue-500/10',
+      cyan: 'border-cyan-500/30 bg-cyan-500/10',
+      yellow: 'border-yellow-500/30 bg-yellow-500/10',
+      indigo: 'border-indigo-500/30 bg-indigo-500/10',
     };
-    return baseClasses[color as keyof typeof baseClasses];
-  };
-
-  const getButtonText = (wallet: WalletOption) => {
-    const isConnected = connectedWallets.includes(wallet.id);
-    const isDetected = wallet.detect();
-    
-    if (isConnected) return 'Connected';
-    if (isDetected) return 'Connect';
-    return 'Install';
-  };
-
-  const getIcon = (wallet: WalletOption) => {
-    const isConnected = connectedWallets.includes(wallet.id);
-    const isDetected = wallet.detect();
-    const isConnecting = connectingWallet === wallet.id;
-    
-    if (isConnecting) return <Loader2 className="w-4 h-4 text-white animate-spin" />;
-    if (isConnected) return <CheckCircle className="w-4 h-4 text-green-400" />;
-    if (isDetected) return <ExternalLink className="w-4 h-4 text-gray-400" />;
-    return <Download className="w-4 h-4 text-gray-400" />;
+    return colorMap[color as keyof typeof colorMap];
   };
 
   return (
@@ -290,95 +88,77 @@ export const WalletConnect: React.FC = () => {
       transition={{ delay: 0.6 }}
       className="bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-xl p-6"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          <Wallet className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Connect Wallet</h3>
+      {/* Header */}
+      <div className="text-center mb-6">
+        <div className="flex items-center justify-center space-x-2 mb-2">
+          <Wallet className="w-6 h-6 text-blue-400" />
+          <h3 className="text-xl font-bold text-white">Connect Your Wallet Now</h3>
         </div>
-        {connectedWallets.length > 0 && (
-          <div className="flex items-center space-x-2">
-            <CheckCircle className="w-4 h-4 text-green-400" />
-            <span className="text-xs text-gray-400">
-              {connectedWallets.length} connected
-            </span>
-          </div>
-        )}
+        <p className="text-gray-400 text-sm">
+          Securely connect your crypto wallet to start managing your portfolio
+        </p>
       </div>
 
-      <div className="space-y-3">
-        {wallets.map((wallet) => {
-          const isConnected = connectedWallets.includes(wallet.id);
-          const isConnecting = connectingWallet === wallet.id;
-          const hasError = errors[wallet.id];
-          const isDetected = wallet.detect();
+      {/* Features */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="flex items-center space-x-2 p-3 bg-gray-700/30 rounded-lg">
+          <Shield className="w-4 h-4 text-green-400" />
+          <span className="text-xs text-gray-300">Secure Connection</span>
+        </div>
+        <div className="flex items-center space-x-2 p-3 bg-gray-700/30 rounded-lg">
+          <Zap className="w-4 h-4 text-yellow-400" />
+          <span className="text-xs text-gray-300">Lightning Fast</span>
+        </div>
+      </div>
 
-          return (
+      {/* Supported Wallets */}
+      <div className="mb-6">
+        <h4 className="text-sm font-medium text-gray-300 mb-3">Supported Wallets</h4>
+        <div className="grid grid-cols-2 gap-3">
+          {wallets.map((wallet, index) => (
             <motion.div
               key={wallet.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-2"
+              transition={{ delay: 0.1 * index }}
+              className={`p-3 rounded-lg border transition-all duration-200 ${getColorClasses(wallet.color)} hover:scale-[1.02]`}
             >
-              <button
-                onClick={() => handleWalletAction(wallet)}
-                disabled={isConnecting}
-                className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 ${
-                  getColorClasses(wallet.color, isConnected)
-                } ${isConnecting ? 'opacity-70' : ''} hover:scale-[1.02] active:scale-[0.98]`}
-              >
-                <div className="flex items-center space-x-3">
-                  <span className="text-xl">{wallet.icon}</span>
-                  <div className="text-left">
-                    <div className="text-sm font-medium text-white">
-                      {wallet.name}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {getButtonText(wallet)}
-                      {!isDetected && ' & Use'}
-                    </div>
+              <div className="flex items-center space-x-3">
+                <span className="text-lg">{wallet.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white truncate">
+                    {wallet.name}
+                  </div>
+                  <div className="text-xs text-gray-400 truncate">
+                    {wallet.description}
                   </div>
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  {getIcon(wallet)}
-                </div>
-              </button>
-
-              {hasError && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="flex items-center space-x-2 px-3 py-2 bg-red-900/20 border border-red-700 rounded-lg"
-                >
-                  <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                  <span className="text-sm text-red-300">{hasError}</span>
-                </motion.div>
-              )}
+              </div>
             </motion.div>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 pt-4 border-t border-gray-700 space-y-3">
-        {connectedWallets.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <button
-              onClick={() => router.push('/wallet')}
-              className="w-full flex items-center justify-center space-x-2 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
-              <Wallet className="w-4 h-4" />
-              <span className="text-sm font-medium">View Wallet Details</span>
-            </button>
-          </motion.div>
-        )}
-        
-        <div className="text-xs text-gray-400 text-center">
-          <p>Don't have a wallet? Click on any wallet above to install it.</p>
+          ))}
         </div>
       </div>
+
+      {/* Connect Button */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+        className="space-y-3"
+      >
+        <button
+          onClick={handleConnectWallet}
+          className="w-full flex items-center justify-center space-x-2 p-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+        >
+          <Wallet className="w-5 h-5" />
+          <span className="font-medium">Connect Your Wallet Now</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+        
+        <div className="text-xs text-gray-400 text-center">
+          <p>Safe & secure • Non-custodial • Your keys, your crypto</p>
+        </div>
+      </motion.div>
     </motion.div>
   );
 };

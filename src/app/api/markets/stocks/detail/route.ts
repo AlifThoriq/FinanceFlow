@@ -1,13 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+
+// Types for API responses
+interface FMPQuote {
+  symbol: string;
+  name?: string;
+  price: number;
+  changesPercentage: number;
+  change: number;
+  dayLow: number;
+  dayHigh: number;
+  yearLow: number;
+  yearHigh: number;
+  marketCap: number;
+  volume: number;
+  avgVolume: number;
+  pe: number;
+  eps: number;
+  sharesOutstanding: number;
+  previousClose: number;
+  open: number;
+  exchange: string;
+  isEtfOrFund: boolean;
+}
+
+interface FMPProfile {
+  companyName: string;
+  mktCap: number;
+  volAvg: number;
+  sector: string;
+  industry: string;
+  country: string;
+  website: string;
+  description: string;
+  ceo: string;
+  fullTimeEmployees: number;
+  exchangeShortName: string;
+  currency: string;
+  beta: number;
+}
+
+interface FMPMetrics {
+  peRatio: number;
+  netIncomePerShare: number;
+  pfcfRatio: number;
+  pocfratio: number;
+  dividendYield: number;
+  pbRatio: number;
+  psRatio: number;
+  roe: number;
+  roa: number;
+  debtToEquity: number;
+}
+
+interface CacheEntry {
+  data: unknown;
+  timestamp: number;
+}
 
 // Add rate limiting with simple in-memory cache
-const cache = new Map();
+const cache = new Map<string, CacheEntry>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const lastRequestTime = new Map();
+const lastRequestTime = new Map<string, number>();
 const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests for FMP
 
-async function rateLimitedRequest(url: string, params: any) {
+async function rateLimitedRequest(url: string, params: Record<string, string>) {
   const cacheKey = `${url}-${JSON.stringify(params)}`;
   const now = Date.now();
   
@@ -39,8 +96,9 @@ async function rateLimitedRequest(url: string, params: any) {
     });
     
     return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 429) {
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response?.status === 429) {
       console.log('Rate limit hit, waiting 5 seconds...');
       await new Promise(resolve => setTimeout(resolve, 5000));
       // Retry once after waiting
@@ -77,7 +135,7 @@ export async function GET(request: NextRequest) {
     try {
       // Get stock quote (current price and basic info)
       const quoteUrl = `https://financialmodelingprep.com/api/v3/quote/${upperSymbol}`;
-      const quoteData = await rateLimitedRequest(quoteUrl, { apikey: apiKey });
+      const quoteData = await rateLimitedRequest(quoteUrl, { apikey: apiKey }) as FMPQuote[];
 
       if (!quoteData || !Array.isArray(quoteData) || quoteData.length === 0) {
         return NextResponse.json({ error: 'Stock not found' }, { status: 404 });
@@ -86,10 +144,10 @@ export async function GET(request: NextRequest) {
       const quote = quoteData[0];
 
       // Get company profile for additional details
-      let profile = null;
+      let profile: FMPProfile | null = null;
       try {
         const profileUrl = `https://financialmodelingprep.com/api/v3/profile/${upperSymbol}`;
-        const profileData = await rateLimitedRequest(profileUrl, { apikey: apiKey });
+        const profileData = await rateLimitedRequest(profileUrl, { apikey: apiKey }) as FMPProfile[];
         if (profileData && Array.isArray(profileData) && profileData.length > 0) {
           profile = profileData[0];
         }
@@ -98,10 +156,10 @@ export async function GET(request: NextRequest) {
       }
 
       // Get key metrics for additional financial data
-      let metrics = null;
+      let metrics: FMPMetrics | null = null;
       try {
         const metricsUrl = `https://financialmodelingprep.com/api/v3/key-metrics/${upperSymbol}`;
-        const metricsData = await rateLimitedRequest(metricsUrl, { apikey: apiKey });
+        const metricsData = await rateLimitedRequest(metricsUrl, { apikey: apiKey }) as FMPMetrics[];
         if (metricsData && Array.isArray(metricsData) && metricsData.length > 0) {
           metrics = metricsData[0];
         }
@@ -158,11 +216,12 @@ export async function GET(request: NextRequest) {
       console.log(`Successfully fetched detail for ${upperSymbol}`);
       return NextResponse.json(stockDetail);
 
-    } catch (apiError: any) {
-      console.error('FMP API Error:', apiError.response?.data || apiError.message);
+    } catch (apiError) {
+      const axiosError = apiError as AxiosError;
+      console.error('FMP API Error:', axiosError.response?.data || axiosError.message);
       
       // Handle specific error cases
-      if (apiError.response?.status === 429) {
+      if (axiosError.response?.status === 429) {
         return NextResponse.json({ 
           error: 'Rate limit exceeded. Please try again in a few moments.',
           retryAfter: 60,
@@ -175,14 +234,14 @@ export async function GET(request: NextRequest) {
         });
       }
       
-      if (apiError.response?.status === 401) {
+      if (axiosError.response?.status === 401) {
         return NextResponse.json({ 
           error: 'Invalid API key for Financial Modeling Prep',
           suggestion: 'Please check your FMP_API_KEY in environment variables'
         }, { status: 401 });
       }
       
-      if (apiError.response?.status === 404) {
+      if (axiosError.response?.status === 404) {
         return NextResponse.json({ 
           error: 'Stock not found on FMP',
           symbol: upperSymbol,
@@ -192,18 +251,19 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json({ 
         error: 'Failed to fetch stock data from FMP API',
-        details: apiError.response?.data || apiError.message,
-        status: apiError.response?.status,
+        details: axiosError.response?.data || axiosError.message,
+        status: axiosError.response?.status,
         symbol: upperSymbol,
         source: 'FMP'
       }, { status: 500 });
     }
 
-  } catch (error: any) {
-    console.error('Error fetching stock detail:', error);
+  } catch (error) {
+    const genericError = error as Error;
+    console.error('Error fetching stock detail:', genericError);
     return NextResponse.json({ 
       error: 'Internal server error',
-      message: error.message 
+      message: genericError.message 
     }, { status: 500 });
   }
 }

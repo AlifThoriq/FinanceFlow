@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 
@@ -12,9 +12,13 @@ interface ChartData {
   volume?: number;
 }
 
+interface StockQuote {
+  symbol: string;
+  price: number;
+}
+
 export function LiveChart({ symbol }: { symbol: string }) {
   const [data, setData] = useState<ChartData[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch historical data
   const { data: historicalData, isLoading } = useQuery({
@@ -22,7 +26,7 @@ export function LiveChart({ symbol }: { symbol: string }) {
     queryFn: async () => {
       const response = await fetch(`/api/markets/historical?symbol=${symbol}`);
       if (!response.ok) throw new Error('Failed to fetch historical data');
-      return response.json();
+      return response.json() as Promise<ChartData[]>;
     },
     refetchInterval: 60000, // Refetch every minute
     staleTime: 50000,
@@ -34,8 +38,8 @@ export function LiveChart({ symbol }: { symbol: string }) {
     queryFn: async () => {
       const response = await fetch('/api/markets/stocks');
       if (!response.ok) throw new Error('Failed to fetch current quote');
-      const stocks = await response.json();
-      return stocks.find((stock: any) => stock.symbol === symbol);
+      const stocks: StockQuote[] = await response.json();
+      return stocks.find((stock: StockQuote) => stock.symbol === symbol);
     },
     refetchInterval: 10000, // Every 10 seconds
     staleTime: 8000,
@@ -115,7 +119,7 @@ export function LiveChart({ symbol }: { symbol: string }) {
               borderRadius: '8px',
               color: 'white'
             }}
-            formatter={(value: any) => [`$${value.toFixed(2)}`, 'Price']}
+            formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
             labelFormatter={(label) => `Time: ${label}`}
           />
           <Line 

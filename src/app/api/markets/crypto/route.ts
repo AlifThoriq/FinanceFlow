@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
+interface CoinMarketData {
+  id: string;
+  symbol: string;
+  name: string;
+  current_price: number;
+  price_change_percentage_24h: number;
+  market_cap: number;
+  total_volume: number;
+  image: string;
+}
+
 export async function GET() {
   try {
-    const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
+    const response = await axios.get<CoinMarketData[]>('https://api.coingecko.com/api/v3/coins/markets', {
       params: {
         vs_currency: 'usd',
         order: 'market_cap_desc',
@@ -14,7 +25,7 @@ export async function GET() {
       }
     });
 
-    const cryptoData = response.data.map((coin: any) => ({
+    const cryptoData = response.data.map((coin: CoinMarketData) => ({
       id: coin.id,
       symbol: coin.symbol.toUpperCase(),
       name: coin.name,

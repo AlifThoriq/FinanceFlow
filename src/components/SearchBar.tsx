@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useSearch } from '@/hooks/useSearch';
 import { 
   Search, 
@@ -126,52 +127,56 @@ export function SearchBar({
           {/* Results */}
           {!isLoading && (
             <>
-             {searchResults?.stocks && searchResults.stocks.length > 0 && (
-  <div className="p-2">
-    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-2">
-      Stocks
-    </div>
-    {searchResults.stocks.map((stock, index) => (
-      <button
-        key={`${stock.symbol}-${index}`} // 👈 Fix: avoid duplicate key
-        onClick={() => handleStockClick(stock.symbol)}
-        className="w-full text-left px-3 py-2 rounded hover:bg-gray-700 transition-colors group"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {stock.logo ? (
-              <img
-                src={stock.logo}
-                alt={stock.symbol}
-                className="w-8 h-8 rounded-full object-contain bg-white p-1"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/api/placeholder/32/32';
-                }}
-              />
-            ) : (
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-white" />
-              </div>
-            )}
+              {/* Stock Results */}
+              {searchResults?.stocks && searchResults.stocks.length > 0 && (
+                <div className="p-2">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-2">
+                    Stocks
+                  </div>
+                  {searchResults.stocks.map((stock, index) => (
+                    <button
+                      key={`${stock.symbol}-${index}`}
+                      onClick={() => handleStockClick(stock.symbol)}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-gray-700 transition-colors group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          {stock.logo ? (
+                            <div className="w-8 h-8 rounded-full bg-white p-1 flex items-center justify-center overflow-hidden">
+                              <Image
+                                src={stock.logo}
+                                alt={stock.symbol}
+                                width={32}
+                                height={32}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/api/placeholder/32/32';
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                              <TrendingUp className="w-4 h-4 text-white" />
+                            </div>
+                          )}
 
-            <div>
-              <div className="font-medium text-white group-hover:text-blue-300">
-                {stock.displaySymbol || stock.symbol}
-              </div>
-              <div className="text-sm text-gray-400 truncate max-w-xs">
-                {stock.description}
-              </div>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 uppercase">
-            {stock.type}
-          </div>
-        </div>
-      </button>
-    ))}
-  </div>
-)}
-
+                          <div>
+                            <div className="font-medium text-white group-hover:text-blue-300">
+                              {stock.displaySymbol || stock.symbol}
+                            </div>
+                            <div className="text-sm text-gray-400 truncate max-w-xs">
+                              {stock.description}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 uppercase">
+                          {stock.type}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Crypto Results */}
               {searchResults?.crypto && searchResults.crypto.length > 0 && (
@@ -188,14 +193,18 @@ export function SearchBar({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <img
-                            src={crypto.image}
-                            alt={crypto.name}
-                            className="w-8 h-8 rounded-full"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/api/placeholder/32/32';
-                            }}
-                          />
+                          <div className="w-8 h-8 rounded-full overflow-hidden">
+                            <Image
+                              src={crypto.image}
+                              alt={crypto.name}
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/api/placeholder/32/32';
+                              }}
+                            />
+                          </div>
                           <div>
                             <div className="font-medium text-white group-hover:text-blue-300">
                               {crypto.symbol}
@@ -221,7 +230,7 @@ export function SearchBar({
                 <div className="text-center py-8">
                   <Search className="w-8 h-8 text-gray-500 mx-auto mb-2" />
                   <p className="text-gray-400">
-                    No results found for "{query}"
+                    No results found for &quot;{query}&quot;
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
                     Try searching for stock symbols or cryptocurrency names

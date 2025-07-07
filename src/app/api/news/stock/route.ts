@@ -3,6 +3,31 @@ import axios from 'axios';
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY;
 
+// Define types for better type safety
+interface NewsArticle {
+  title: string;
+  description: string;
+  url: string;
+  source: {
+    name: string;
+  };
+  publishedAt: string;
+  urlToImage: string | null;
+}
+
+interface NewsApiResponse {
+  articles: NewsArticle[];
+}
+
+interface ProcessedArticle {
+  title: string;
+  description: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+  imageUrl: string | null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -22,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     const query = searchTerms[symbol] || symbol;
 
-    const response = await axios.get('https://newsapi.org/v2/everything', {
+    const response = await axios.get<NewsApiResponse>('https://newsapi.org/v2/everything', {
       params: {
         q: query,
         apiKey: NEWS_API_KEY,
@@ -33,14 +58,14 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const articles = response.data.articles
-      .filter((article: any) => 
+    const articles: ProcessedArticle[] = response.data.articles
+      .filter((article: NewsArticle) => 
         article.title && 
         article.description && 
         !article.title.includes('[Removed]') &&
         !article.description.includes('[Removed]')
       )
-      .map((article: any) => ({
+      .map((article: NewsArticle): ProcessedArticle => ({
         title: article.title,
         description: article.description,
         url: article.url,

@@ -10,6 +10,12 @@ interface TickerItem {
   changePercent: number;
 }
 
+interface CryptoData {
+  symbol: string;
+  price: number;
+  change24h: number;
+}
+
 export function MarketTicker() {
   const { data: stockData } = useMarketData();
   const { data: cryptoData } = useCryptoData();
@@ -19,7 +25,7 @@ export function MarketTicker() {
     if (stockData && cryptoData) {
       const combined = [
         ...stockData.slice(0, 3),
-        ...cryptoData.slice(0, 3).map((crypto: any) => ({
+        ...cryptoData.slice(0, 3).map((crypto: CryptoData) => ({
           symbol: crypto.symbol,
           price: crypto.price,
           change: crypto.change24h,

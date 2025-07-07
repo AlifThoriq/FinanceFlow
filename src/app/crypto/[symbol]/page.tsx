@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import {
   ArrowLeft,
   TrendingUp,
@@ -13,10 +14,7 @@ import {
   Globe,
   ExternalLink,
   RefreshCw,
-  DollarSign,
   Activity,
-  Calendar,
-  Hash,
   TrendingUpDown
 } from 'lucide-react';
 import { 
@@ -27,7 +25,6 @@ import {
   LineData,
   CandlestickData,
   UTCTimestamp,
-  Time,
   LineSeries,
   CandlestickSeries
 } from 'lightweight-charts';
@@ -84,7 +81,7 @@ export default function CryptoDetailPage() {
   // Fetch crypto detail
   const { data: cryptoDetail, isLoading: cryptoLoading, refetch: refetchCrypto } = useQuery({
     queryKey: ['crypto-detail', symbol],
-    queryFn: async () => {
+    queryFn: async (): Promise<CryptoDetail> => {
       const response = await fetch(`/api/markets/crypto/detail?symbol=${symbol.toLowerCase()}`);
       if (!response.ok) throw new Error('Failed to fetch crypto data');
       return response.json();
@@ -107,7 +104,7 @@ export default function CryptoDetailPage() {
   // Fetch related news
   const { data: news, isLoading: newsLoading } = useQuery({
     queryKey: ['crypto-news', symbol],
-    queryFn: async () => {
+    queryFn: async (): Promise<NewsItem[]> => {
       const response = await fetch(`/api/news/crypto?symbol=${symbol}`);
       if (!response.ok) throw new Error('Failed to fetch news');
       return response.json();
@@ -320,10 +317,12 @@ export default function CryptoDetailPage() {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div className="flex items-center space-x-3">
-                <img 
+                <Image 
                   src={cryptoDetail.image} 
                   alt={cryptoDetail.name}
-                  className="w-8 h-8 rounded-full"
+                  width={32}
+                  height={32}
+                  className="rounded-full"
                 />
                 <div>
                   <h1 className="text-2xl font-bold text-white">{cryptoDetail.name}</h1>
@@ -665,4 +664,4 @@ export default function CryptoDetailPage() {
             </footer>
     </div>
   );
-} 
+}

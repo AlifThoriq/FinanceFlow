@@ -1,9 +1,19 @@
 'use client';
 import React from 'react';
+import Image from 'next/image';
 import { useCryptoData } from '@/hooks/useMarketData';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+
+interface CryptoItem {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  price: number;
+  change24h: number;
+}
 
 interface CryptoWidgetProps {
   router: AppRouterInstance;
@@ -53,7 +63,7 @@ export function CryptoWidget({ router }: CryptoWidgetProps) {
       </div>
       
       <div className="space-y-4">
-        {cryptoData?.slice(0, 8).map((crypto: any, index: number) => (
+        {cryptoData?.slice(0, 8).map((crypto: CryptoItem, index: number) => (
           <motion.div
             key={crypto.id}
             initial={{ opacity: 0, x: -20 }}
@@ -63,11 +73,16 @@ export function CryptoWidget({ router }: CryptoWidgetProps) {
             onClick={() => handleCryptoClick(crypto.symbol.toLowerCase())}
           >
             <div className="flex items-center space-x-3">
-              <img 
-                src={crypto.image} 
-                alt={crypto.name}
-                className="w-8 h-8 rounded-full"
-              />
+              <div className="w-8 h-8 rounded-full overflow-hidden">
+                <Image 
+                  src={crypto.image} 
+                  alt={crypto.name}
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                  // Removed unoptimized - let custom loader handle it
+                />
+              </div>
               <div>
                 <div className="font-medium text-white hover:text-blue-300 transition-colors">
                   {crypto.symbol}

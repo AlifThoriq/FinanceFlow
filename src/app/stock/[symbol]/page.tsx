@@ -13,10 +13,7 @@ import {
   Globe,
   ExternalLink,
   RefreshCw,
-  DollarSign,
   Activity,
-  Calendar,
-  Hash,
   TrendingUpDown,
   Building,
   Users,
@@ -31,7 +28,6 @@ import {
   LineData,
   CandlestickData,
   UTCTimestamp,
-  Time,
   LineSeries,
   CandlestickSeries
 } from 'lightweight-charts';
@@ -75,15 +71,6 @@ interface StockDetail {
   returnOnEquity: number | null;
   returnOnAssets: number | null;
   debtToEquity: number | null;
-}
-
-interface NewsItem {
-  title: string;
-  description: string;
-  url: string;
-  source: string;
-  publishedAt: string;
-  imageUrl?: string;
 }
 
 interface ChartDataPoint {
@@ -153,17 +140,6 @@ export default function StockDetailPage() {
     },
     refetchInterval: 300000, // 5 minutes
     enabled: !!stockDetail?.symbol,
-  });
-
-  // Fetch related news (you'll need to create this API endpoint)
-  const { data: news, isLoading: newsLoading } = useQuery({
-    queryKey: ['stock-news', symbol],
-    queryFn: async () => {
-      const response = await fetch(`/api/news/stocks?symbol=${symbol}`);
-      if (!response.ok) throw new Error('Failed to fetch news');
-      return response.json();
-    },
-    refetchInterval: 600000, // 10 minutes
   });
 
   // Initialize and update chart
@@ -487,7 +463,7 @@ export default function StockDetailPage() {
           {/* Day Range and 52-Week Range */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-              <div className="text-sm text-blue-400 mb-2">Today's Range</div>
+              <div className="text-sm text-blue-400 mb-2">Today&apos;s Range</div>
               <div className="flex items-center justify-between">
                 <span className="text-white font-semibold">{formatPrice(stockDetail.dayLow)}</span>
                 <div className="flex-1 mx-4 h-2 bg-gray-700 rounded-full relative">

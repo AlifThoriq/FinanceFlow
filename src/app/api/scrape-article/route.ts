@@ -18,6 +18,15 @@ interface ScrapedContent {
   images: string[]; // Add array of images
 }
 
+interface UpdateData {
+  content: string;
+  author?: string;
+  scraped_at: string;
+  full_content_available: boolean;
+  html_content?: string;
+  content_images?: string[];
+}
+
 class ArticleScraper {
   private static cleanText(text: string): string {
     return text
@@ -133,7 +142,6 @@ class ArticleScraper {
     let htmlContent = '';
     let title = '';
     let author = '';
-    let contentElement: cheerio.Cheerio | null = null;
 
     // Extract title
     for (const selector of titleSelectors) {
@@ -158,8 +166,6 @@ class ArticleScraper {
         
         // Use this selector if it has substantial content
         if (textContent.length > 200 || paragraphs > 2 || hasImages) {
-          contentElement = contentEl;
-          
           // Extract clean text
           const textParagraphs = contentEl.find('p, h2, h3, h4, h5, h6').map((_, el) => {
             const text = $(el).text().trim();
@@ -261,9 +267,10 @@ class ArticleScraper {
       
       return result;
       
-    } catch (error: any) {
-      console.error('Scraping error for URL:', url, error.message);
-      throw new Error(`Failed to scrape article: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Scraping error for URL:', url, errorMessage);
+      throw new Error(`Failed to scrape article: ${errorMessage}`);
     }
   }
 }
@@ -313,7 +320,7 @@ export async function POST(request: Request) {
       }
 
       // Prepare update data
-      const updateData: any = {
+      const updateData: UpdateData = {
         content: scrapedContent.content,
         author: scrapedContent.author || article.author,
         scraped_at: new Date().toISOString(),
@@ -349,8 +356,9 @@ export async function POST(request: Request) {
         }
       });
 
-    } catch (scrapeError: any) {
-      console.error('Scraping failed:', scrapeError.message);
+    } catch (scrapeError: unknown) {
+      const errorMessage = scrapeError instanceof Error ? scrapeError.message : 'Unknown scraping error';
+      console.error('Scraping failed:', errorMessage);
       
       // Return original article even if scraping fails
       return NextResponse.json({
@@ -358,15 +366,16 @@ export async function POST(request: Request) {
         article: {
           ...article,
           scraped: false,
-          scrapeError: scrapeError.message
+          scrapeError: errorMessage
         }
       });
     }
 
-  } catch (error: any) {
-    console.error('API Error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('API Error:', errorMessage);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message }, 
+      { error: 'Internal server error', details: errorMessage }, 
       { status: 500 }
     );
   }

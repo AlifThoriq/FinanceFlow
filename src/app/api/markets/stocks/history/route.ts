@@ -1,13 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+
+// Types for API responses
+interface HistoricalDataPoint {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  price?: number;
+  volume: number;
+}
+
+interface ProcessedDataPoint {
+  timestamp: number;
+  date: string;
+  price: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  timeFormat: string;
+  fullDate: string;
+}
+
+interface CacheEntry {
+  data: unknown;
+  timestamp: number;
+}
+
+interface HistoricalPriceResponse {
+  historical: HistoricalDataPoint[];
+}
 
 // Add rate limiting with simple in-memory cache
-const cache = new Map();
+const cache = new Map<string, CacheEntry>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const lastRequestTime = new Map();
+const lastRequestTime = new Map<string, number>();
 const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests for FMP
 
-async function rateLimitedRequest(url: string, params: any) {
+async function rateLimitedRequest(url: string, params: Record<string, string>) {
   const cacheKey = `${url}-${JSON.stringify(params)}`;
   const now = Date.now();
   
@@ -39,8 +72,9 @@ async function rateLimitedRequest(url: string, params: any) {
     });
     
     return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 429) {
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response?.status === 429) {
       console.log('Rate limit hit, waiting 5 seconds...');
       await new Promise(resolve => setTimeout(resolve, 5000));
       // Retry once after waiting
@@ -80,7 +114,7 @@ function createUTCTimestamp(dateString: string, isIntraday = false): number {
 }
 
 // Helper function to fetch intraday data with extended range
-async function fetchIntradayData(symbol: string, apiKey: string) {
+async function fetchIntradayData(symbol: string, apiKey: string): Promise<HistoricalDataPoint[]> {
   console.log(`Fetching extended intraday data for ${symbol}`);
   
   // Try different endpoints with longer ranges
@@ -97,7 +131,7 @@ async function fetchIntradayData(symbol: string, apiKey: string) {
       const url = `https://financialmodelingprep.com/api/v3${endpoint}`;
       console.log(`Trying intraday endpoint: ${url}`);
       
-      const response = await rateLimitedRequest(url, { apikey: apiKey });
+      const response = await rateLimitedRequest(url, { apikey: apiKey }) as HistoricalDataPoint[];
       
       if (response && Array.isArray(response) && response.length > 0) {
         // Instead of filtering to 24 hours, get last 3-7 days for better chart visualization
@@ -119,8 +153,9 @@ async function fetchIntradayData(symbol: string, apiKey: string) {
         // If filtered data is too small, return more recent data
         return response.slice(0, 100);
       }
-    } catch (error: any) {
-      console.log(`Intraday endpoint ${endpoint} failed:`, error.message);
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      console.log(`Intraday endpoint ${endpoint} failed:`, axiosError.message);
       continue;
     }
   }
@@ -129,7 +164,7 @@ async function fetchIntradayData(symbol: string, apiKey: string) {
 }
 
 // Helper function to fetch EOD data with extended range
-async function fetchEODData(symbol: string, apiKey: string, days: number) {
+async function fetchEODData(symbol: string, apiKey: string, days: number): Promise<HistoricalDataPoint[]> {
   console.log(`Fetching extended EOD data for ${symbol}, requested: ${days} days`);
   
   // Multiply the requested days to get more historical data
@@ -154,14 +189,15 @@ async function fetchEODData(symbol: string, apiKey: string, days: number) {
     const url = `https://financialmodelingprep.com/api/v3/historical-price-full/${symbol}`;
     console.log(`Trying EOD endpoint: ${url} (${extendedDays} days)`);
     
-    const response = await rateLimitedRequest(url, params);
+    const response = await rateLimitedRequest(url, params) as HistoricalPriceResponse;
     
     if (response?.historical && Array.isArray(response.historical)) {
       console.log(`Retrieved ${response.historical.length} historical data points`);
       return response.historical;
     }
-  } catch (error: any) {
-    console.log('Historical-price-full failed:', error.message);
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    console.log('Historical-price-full failed:', axiosError.message);
   }
 
   // Fallback to historical-chart/1day
@@ -169,22 +205,23 @@ async function fetchEODData(symbol: string, apiKey: string, days: number) {
     const fallbackUrl = `https://financialmodelingprep.com/api/v3/historical-chart/1day/${symbol}`;
     console.log(`Trying fallback EOD endpoint: ${fallbackUrl}`);
     
-    const fallbackResponse = await rateLimitedRequest(fallbackUrl, { apikey: apiKey });
+    const fallbackResponse = await rateLimitedRequest(fallbackUrl, { apikey: apiKey }) as HistoricalDataPoint[];
     
     if (Array.isArray(fallbackResponse) && fallbackResponse.length > 0) {
       // Don't filter by date range for fallback - get as much as possible
       console.log(`Retrieved ${fallbackResponse.length} fallback data points`);
       return fallbackResponse.slice(0, 365); // Get up to 1 year of data
     }
-  } catch (error: any) {
-    console.log('Fallback EOD endpoint failed:', error.message);
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    console.log('Fallback EOD endpoint failed:', axiosError.message);
   }
   
   throw new Error('All EOD endpoints failed');
 }
 
 // Helper function to process data with smart sampling
-function processChartData(rawData: any[], days: number, isIntraday = false) {
+function processChartData(rawData: HistoricalDataPoint[], days: number, isIntraday = false): ProcessedDataPoint[] {
   const validData = rawData
     .filter(item => {
       // Validate required fields
@@ -281,7 +318,7 @@ export async function GET(request: NextRequest) {
     try {
       console.log(`Fetching extended ${days} days of data for ${upperSymbol} from FMP`);
       
-      let rawData: any[] = [];
+      let rawData: HistoricalDataPoint[] = [];
       let isIntraday = false;
       let dataSource = '';
 
@@ -364,11 +401,12 @@ export async function GET(request: NextRequest) {
       console.log(`Processed ${chartData.length} chart data points spanning ${actualDays} days for lightweight-charts v5`);
       return NextResponse.json(responseData);
 
-    } catch (apiError: any) {
-      console.error('FMP API Error:', apiError.response?.data || apiError.message);
+    } catch (apiError) {
+      const axiosError = apiError as AxiosError;
+      console.error('FMP API Error:', axiosError.response?.data || axiosError.message);
       
       // Handle specific error cases
-      if (apiError.response?.status === 429) {
+      if (axiosError.response?.status === 429) {
         return NextResponse.json({ 
           error: 'Rate limit exceeded. Please try again in a few moments.',
           retryAfter: 60,
@@ -381,14 +419,14 @@ export async function GET(request: NextRequest) {
         });
       }
       
-      if (apiError.response?.status === 401) {
+      if (axiosError.response?.status === 401) {
         return NextResponse.json({ 
           error: 'Invalid API key for Financial Modeling Prep',
           suggestion: 'Please check your FMP_API_KEY in environment variables'
         }, { status: 401 });
       }
       
-      if (apiError.response?.status === 404) {
+      if (axiosError.response?.status === 404) {
         return NextResponse.json({ 
           error: 'Stock not found on FMP',
           symbol: upperSymbol,
@@ -398,19 +436,20 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json({ 
         error: 'Failed to fetch data from FMP API',
-        details: apiError.response?.data || apiError.message,
-        status: apiError.response?.status,
+        details: axiosError.response?.data || axiosError.message,
+        status: axiosError.response?.status,
         symbol: upperSymbol,
         days,
         source: 'FMP'
       }, { status: 500 });
     }
 
-  } catch (error: any) {
-    console.error('Error fetching stock history:', error);
+  } catch (error) {
+    const genericError = error as Error;
+    console.error('Error fetching stock history:', genericError);
     return NextResponse.json({ 
       error: 'Internal server error',
-      message: error.message 
+      message: genericError.message 
     }, { status: 500 });
   }
 }

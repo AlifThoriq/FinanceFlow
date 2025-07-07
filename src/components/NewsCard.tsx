@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Clock, ExternalLink, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -78,9 +79,11 @@ export function NewsCard({ news }: { news: NewsItem }) {
       
       {news.imageUrl && (
         <div className="mb-4 rounded-lg overflow-hidden">
-          <img 
+          <Image 
             src={news.imageUrl} 
             alt={news.title}
+            width={400}
+            height={128}
             className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
           />
         </div>

@@ -1,8 +1,14 @@
 'use client';
 import React from 'react';
 import { useEconomicData } from '@/hooks/useMarketData';
-import { BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+interface EconomicIndicator {
+  seriesId: string;
+  indicator: string;
+  value: number;
+}
 
 export function EconomicIndicators() {
   const { data: economicData, isLoading } = useEconomicData();
@@ -46,7 +52,7 @@ export function EconomicIndicators() {
       </div>
       
       <div className="space-y-4">
-        {economicData?.map((indicator: any, index: number) => (
+        {economicData?.map((indicator: EconomicIndicator, index: number) => (
           <motion.div
             key={indicator.seriesId}
             initial={{ opacity: 0, y: 10 }}
