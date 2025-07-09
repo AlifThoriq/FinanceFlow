@@ -7,21 +7,42 @@ import { createWeb3Modal } from '@web3modal/wagmi/react';
 import { config } from '@/lib/web3/ethereum/wagmi';
 import { SolanaWalletProvider } from '@/lib/web3/solana/adapter';
 
-// Create a client
-const queryClient = new QueryClient();
-
-// Create modal
-createWeb3Modal({
-  wagmiConfig: config,
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
-  enableAnalytics: true,
-  enableOnramp: true,
-  themeMode: 'dark',
-  themeVariables: {
-    '--w3m-accent': '#3b82f6',
-    '--w3m-border-radius-master': '12px',
-  }
+// Create a client dengan config yang optimal untuk production
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      staleTime: 30 * 1000, // 30 seconds
+      refetchOnWindowFocus: false,
+    },
+  },
 });
+
+// Create modal hanya di client side untuk menghindari SSR issues
+let web3Modal: any = null;
+
+if (typeof window !== 'undefined') {
+  web3Modal = createWeb3Modal({
+    wagmiConfig: config,
+    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+    enableAnalytics: false, // Disable untuk production kecuali diperlukan
+    enableOnramp: true,
+    themeMode: 'dark',
+    themeVariables: {
+      '--w3m-accent': '#3b82f6',
+      '--w3m-border-radius-master': '12px',
+    },
+    // Tambahan config untuk production
+    featuredWalletIds: [
+      // MetaMask
+      'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
+      // WalletConnect
+      '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
+      // Coinbase
+      'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa',
+    ],
+  });
+}
 
 interface Web3ProvidersProps {
   children: ReactNode;
