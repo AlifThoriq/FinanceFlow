@@ -30,10 +30,6 @@ interface FinnhubStock {
   displaySymbol: string;
 }
 
-interface FMPProfile {
-  image?: string;
-}
-
 interface CoinGeckoCoin {
   id: string;
   symbol: string;
@@ -84,24 +80,23 @@ export async function GET(request: Request) {
           uniqueStocks.map(async (stock: FinnhubStock) => {
             let logo = '';
 
-           try {
-  const fmpRes = await axios.get(
-    `https://financialmodelingprep.com/api/v3/profile/${stock.symbol}?apikey=${FMP_KEY}`
-  );
+            try {
+              const fmpRes = await axios.get(
+                `https://financialmodelingprep.com/api/v3/profile/${stock.symbol}?apikey=${FMP_KEY}`
+              );
 
-  if (Array.isArray(fmpRes.data) && fmpRes.data[0]?.image) {
-    logo = fmpRes.data[0].image;
-  } else {
-    console.warn(`🟡 No logo found for ${stock.symbol} (allowed no-image)`);
-  }
-} catch (err: any) {
-  if (axios.isAxiosError(err) && err.response?.status === 403) {
-    console.warn(`🔒 FMP 403: Access denied for ${stock.symbol}`);
-  } else {
-    console.warn(`⚠️ Error fetching logo for ${stock.symbol}:`, err.message);
-  }
-}
-
+              if (Array.isArray(fmpRes.data) && fmpRes.data[0]?.image) {
+                logo = fmpRes.data[0].image;
+              } else {
+                console.warn(`🟡 No logo found for ${stock.symbol} (allowed no-image)`);
+              }
+            } catch (err: unknown) {
+              if (axios.isAxiosError(err) && err.response?.status === 403) {
+                console.warn(`🔒 FMP 403: Access denied for ${stock.symbol}`);
+              } else {
+                console.warn(`⚠️ Error fetching logo for ${stock.symbol}:`, err instanceof Error ? err.message : 'Unknown error');
+              }
+            }
 
             return {
               symbol: stock.symbol,

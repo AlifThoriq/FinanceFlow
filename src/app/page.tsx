@@ -9,8 +9,8 @@ import { NewsCard } from '@/components/NewsCard';
 import { NewsPagination } from '@/components/NewsPagination';
 import { CryptoWidget } from '@/components/CryptoWidget';
 import { EconomicIndicators } from '@/components/EconomicIndicators';
-import { SearchBar } from '@/components/SearchBar'; // Import SearchBar component baru
-import { WalletConnect } from '@/components/WalletConnect'; // Import WalletConnect component
+import { SearchBar } from '@/components/SearchBar';
+import { WalletConnect } from '@/components/WalletConnect';
 import { useMarketData, useNewsData } from '@/hooks/useMarketData';
 import { 
   Activity, 
@@ -28,6 +28,26 @@ import {
   DollarSign
 } from 'lucide-react';
 
+// Define types for better type safety
+interface MarketDataItem {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume?: number;
+}
+
+interface NewsItem {
+  title: string;
+  description?: string;
+  url: string;
+  publishedAt: string;
+  source: {
+    name: string;
+  };
+  urlToImage?: string;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -42,7 +62,7 @@ function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState('business');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(''); // Keep for news search
+  const [searchTerm] = useState(''); // Keep for potential future use
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Pagination states
@@ -86,8 +106,8 @@ function Dashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Filter news based on search term (tetap untuk news search)
-  const filteredNews = newsData?.filter((news: any) =>
+  // Filter news based on search term
+  const filteredNews = newsData?.filter((news: NewsItem) =>
     news.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     news.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -238,7 +258,7 @@ function Dashboard() {
                   </div>
                 ))
               ) : (
-                marketData?.slice(0, 4).map((stock: any, index: number) => (
+                marketData?.slice(0, 4).map((stock: MarketDataItem, index: number) => (
                   <motion.div
                     key={stock.symbol}
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -323,7 +343,7 @@ function Dashboard() {
                     </div>
                   ))
                 ) : currentNews && currentNews.length > 0 ? (
-                  currentNews.map((news: any, index: number) => (
+                  currentNews.map((news: NewsItem, index: number) => (
                     <motion.div
                       key={`${currentPage}-${index}`}
                       initial={{ opacity: 0, y: 20 }}

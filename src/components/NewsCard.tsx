@@ -5,15 +5,16 @@ import Image from 'next/image';
 import { Clock, ExternalLink, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Interface yang sesuai dengan yang digunakan di app/page.tsx
 interface NewsItem {
-  id: string;
   title: string;
-  description: string;
+  description?: string;
   url: string;
-  source: string;
   publishedAt: string;
-  imageUrl?: string;
-  slug: string;
+  source: {
+    name: string;
+  };
+  urlToImage?: string;
 }
 
 export function NewsCard({ news }: { news: NewsItem }) {
@@ -29,9 +30,18 @@ export function NewsCard({ news }: { news: NewsItem }) {
     return `${Math.floor(diffInHours / 24)}d ago`;
   };
 
+  // Generate slug dari title untuk routing
+  const generateSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
   const handleReadMore = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/article/${news.slug}`);
+    const slug = generateSlug(news.title);
+    router.push(`/article/${slug}`);
   };
 
   const handleExternalLink = (e: React.MouseEvent) => {
@@ -49,7 +59,7 @@ export function NewsCard({ news }: { news: NewsItem }) {
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center space-x-2 text-sm text-gray-400">
-          <span className="font-medium">{news.source}</span>
+          <span className="font-medium">{news.source.name}</span>
           <div className="flex items-center space-x-1">
             <Clock className="w-3 h-3" />
             <span>{timeAgo(news.publishedAt)}</span>
@@ -77,10 +87,10 @@ export function NewsCard({ news }: { news: NewsItem }) {
         </p>
       )}
       
-      {news.imageUrl && (
+      {news.urlToImage && (
         <div className="mb-4 rounded-lg overflow-hidden">
           <Image 
-            src={news.imageUrl} 
+            src={news.urlToImage} 
             alt={news.title}
             width={400}
             height={128}
