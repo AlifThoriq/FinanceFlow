@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { createWeb3Modal } from '@web3modal/wagmi/react';
-import { config } from '@/lib/web3/ethereum/wagmi';
+import { config } from '@/lib/web3/ethereum/wagmi-client';
 
 export function Web3ModalClient() {
   useEffect(() => {
