@@ -4,15 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EthereumWalletConnect } from '@/components/wallet/EthereumWalletConnect';
 import { SolanaWalletConnect } from '@/components/wallet/SolanaWalletConnect';
-import { useWalletContext, WalletType } from '@/components/wallet/WalletProvider';
+import { useWalletContext } from '@/components/wallet/WalletProvider';
 import { 
-  Wallet, 
   ToggleLeft, 
   ToggleRight, 
   Activity, 
   TrendingUp, 
   DollarSign,
-  Users,
   ChevronRight,
   Shield,
   Zap,

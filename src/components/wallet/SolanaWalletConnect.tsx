@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
@@ -19,19 +19,7 @@ export function SolanaWalletConnect({ onWalletConnected }: SolanaWalletConnectPr
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (connected && publicKey) {
-      fetchBalance();
-    }
-  }, [connected, publicKey, connection]);
-
-  useEffect(() => {
-    if (connected && publicKey && balance !== null && onWalletConnected) {
-      onWalletConnected(publicKey.toString(), (balance / LAMPORTS_PER_SOL).toString());
-    }
-  }, [connected, publicKey, balance, onWalletConnected]);
-
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     if (!publicKey) return;
     
     setLoading(true);
@@ -43,7 +31,19 @@ export function SolanaWalletConnect({ onWalletConnected }: SolanaWalletConnectPr
     } finally {
       setLoading(false);
     }
-  };
+  }, [publicKey, connection]);
+
+  useEffect(() => {
+    if (connected && publicKey) {
+      fetchBalance();
+    }
+  }, [connected, publicKey, fetchBalance]);
+
+  useEffect(() => {
+    if (connected && publicKey && balance !== null && onWalletConnected) {
+      onWalletConnected(publicKey.toString(), (balance / LAMPORTS_PER_SOL).toString());
+    }
+  }, [connected, publicKey, balance, onWalletConnected]);
 
   const handleCopy = async (text: string) => {
     try {

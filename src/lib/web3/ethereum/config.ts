@@ -1,5 +1,3 @@
-import { Chain } from 'wagmi/chains';
-
 export const ethereumConfig = {
   infuraApiKey: process.env.NEXT_PUBLIC_INFURA_API_KEY,
   walletConnectProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
@@ -7,7 +5,7 @@ export const ethereumConfig = {
   // Supported chains
   supportedChains: [
     'mainnet',
-    'sepolia', 
+    'sepolia',
     'polygon',
     'arbitrum',
     'optimism',
@@ -57,6 +55,6 @@ export const getChainInfo = (chainId: number) => {
     10: { name: 'Optimism', symbol: 'ETH', explorer: ethereumConfig.blockExplorers.optimism },
     8453: { name: 'Base', symbol: 'ETH', explorer: ethereumConfig.blockExplorers.base },
   };
-  
+
   return chainMap[chainId] || { name: 'Unknown', symbol: 'ETH', explorer: '' };
 };

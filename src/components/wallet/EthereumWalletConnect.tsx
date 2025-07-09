@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useAccount, useBalance, useDisconnect, useConnect } from 'wagmi';
+import { useAccount, useBalance, useDisconnect } from 'wagmi';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { formatEther } from 'viem';
 import { Wallet, ExternalLink, Copy, LogOut, Loader2 } from 'lucide-react';

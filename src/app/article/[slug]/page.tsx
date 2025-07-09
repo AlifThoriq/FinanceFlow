@@ -63,6 +63,53 @@ export default function ArticlePage() {
   const [error, setError] = useState<string | null>(null);
   const [scrapingStatus, setScrapingStatus] = useState<'idle' | 'scraping' | 'success' | 'error'>('idle');
 
+  const scrapeArticleContent = useCallback(async (articleData: Article) => {
+    try {
+      setScraping(true);
+      setScrapingStatus('scraping');
+      
+      const response = await axios.post('/api/scrape-article', { 
+        slug: params.slug 
+      }, {
+        timeout: 30000 // 30 seconds timeout
+      });
+
+      if (response.data.success) {
+        const updatedArticle = response.data.article;
+        setArticle(updatedArticle);
+        
+        if (updatedArticle.scraped && updatedArticle.content.length > articleData.content?.length) {
+          setScrapingStatus('success');
+        } else if (updatedArticle.scrapeError) {
+          setScrapingStatus('error');
+        }
+      }
+    } catch (err) {
+      console.error('Scraping failed:', err);
+      const errorResponse = err as ErrorResponse;
+      console.error('Error details:', errorResponse.response?.data?.error || errorResponse.message);
+      setScrapingStatus('error');
+    } finally {
+      setScraping(false);
+    }
+  }, [params.slug]);
+
+  const fetchRelatedArticles = useCallback(async (category: string, currentId: string) => {
+    try {
+      const { data: relatedData } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('category', category)
+        .neq('id', currentId)
+        .order('published_at', { ascending: false })
+        .limit(4);
+
+      setRelatedArticles(relatedData || []);
+    } catch (err) {
+      console.error('Error fetching related articles:', err);
+    }
+  }, []);
+
   const fetchArticle = useCallback(async () => {
     try {
       setLoading(true);
@@ -94,7 +141,7 @@ export default function ArticlePage() {
       }
 
       // Fetch related articles
-      fetchRelatedArticles(articleData.category, articleData.id);
+      await fetchRelatedArticles(articleData.category, articleData.id);
 
     } catch (err) {
       setError('Failed to load article');
@@ -102,58 +149,11 @@ export default function ArticlePage() {
     } finally {
       setLoading(false);
     }
-  }, [params.slug]);
+  }, [params.slug, scrapeArticleContent, fetchRelatedArticles]);
 
   useEffect(() => {
     fetchArticle();
   }, [fetchArticle]);
-
-  const scrapeArticleContent = async (articleData: Article) => {
-    try {
-      setScraping(true);
-      setScrapingStatus('scraping');
-      
-      const response = await axios.post('/api/scrape-article', { 
-        slug: params.slug 
-      }, {
-        timeout: 30000 // 30 seconds timeout
-      });
-
-      if (response.data.success) {
-        const updatedArticle = response.data.article;
-        setArticle(updatedArticle);
-        
-        if (updatedArticle.scraped && updatedArticle.content.length > articleData.content?.length) {
-          setScrapingStatus('success');
-        } else if (updatedArticle.scrapeError) {
-          setScrapingStatus('error');
-        }
-      }
-    } catch (err) {
-      console.error('Scraping failed:', err);
-      const errorResponse = err as ErrorResponse;
-      console.error('Error details:', errorResponse.response?.data?.error || errorResponse.message);
-      setScrapingStatus('error');
-    } finally {
-      setScraping(false);
-    }
-  };
-
-  const fetchRelatedArticles = async (category: string, currentId: string) => {
-    try {
-      const { data: relatedData } = await supabase
-        .from('articles')
-        .select('*')
-        .eq('category', category)
-        .neq('id', currentId)
-        .order('published_at', { ascending: false })
-        .limit(4);
-
-      setRelatedArticles(relatedData || []);
-    } catch (err) {
-      console.error('Error fetching related articles:', err);
-    }
-  };
 
   const handleRetryScrap = async () => {
     if (article) {

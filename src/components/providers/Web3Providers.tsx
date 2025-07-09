@@ -19,10 +19,8 @@ const queryClient = new QueryClient({
 });
 
 // Create modal hanya di client side untuk menghindari SSR issues
-let web3Modal: any = null;
-
 if (typeof window !== 'undefined') {
-  web3Modal = createWeb3Modal({
+  createWeb3Modal({
     wagmiConfig: config,
     projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
     enableAnalytics: false, // Disable untuk production kecuali diperlukan
