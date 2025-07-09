@@ -3,7 +3,6 @@
 import React, { ReactNode } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createWeb3Modal } from '@web3modal/wagmi/react';
 import { config } from '@/lib/web3/ethereum/wagmi-client';
 import { SolanaWalletProvider } from '@/lib/web3/solana/adapter';
 import dynamic from 'next/dynamic';
