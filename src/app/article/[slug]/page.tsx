@@ -1,7 +1,8 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { 
   ArrowLeft, 
   Clock, 
@@ -43,6 +44,15 @@ interface Article {
   scraped_at?: string;
 }
 
+interface ErrorResponse {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
 export default function ArticlePage() {
   const params = useParams();
   const router = useRouter();
@@ -53,11 +63,7 @@ export default function ArticlePage() {
   const [error, setError] = useState<string | null>(null);
   const [scrapingStatus, setScrapingStatus] = useState<'idle' | 'scraping' | 'success' | 'error'>('idle');
 
-  useEffect(() => {
-    fetchArticle();
-  }, [params.slug]);
-
-  const fetchArticle = async () => {
+  const fetchArticle = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -96,7 +102,11 @@ export default function ArticlePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.slug]);
+
+  useEffect(() => {
+    fetchArticle();
+  }, [fetchArticle]);
 
   const scrapeArticleContent = async (articleData: Article) => {
     try {
@@ -119,8 +129,10 @@ export default function ArticlePage() {
           setScrapingStatus('error');
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Scraping failed:', err);
+      const errorResponse = err as ErrorResponse;
+      console.error('Error details:', errorResponse.response?.data?.error || errorResponse.message);
       setScrapingStatus('error');
     } finally {
       setScraping(false);
@@ -358,10 +370,13 @@ export default function ArticlePage() {
           {article.image_url && (
             <div className="px-8 mb-8">
               <div className="rounded-xl overflow-hidden">
-                <img 
-                  src={article.image_url} 
+                <Image
+                  src={article.image_url}
                   alt={article.title}
+                  width={800}
+                  height={400}
                   className="w-full h-64 md:h-96 object-cover"
+                  priority
                 />
               </div>
             </div>
@@ -421,9 +436,11 @@ export default function ArticlePage() {
                 >
                   {relatedArticle.image_url && (
                     <div className="mb-4 rounded-lg overflow-hidden">
-                      <img 
-                        src={relatedArticle.image_url} 
+                      <Image
+                        src={relatedArticle.image_url}
                         alt={relatedArticle.title}
+                        width={400}
+                        height={200}
                         className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>

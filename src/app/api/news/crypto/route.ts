@@ -3,6 +3,21 @@ import axios from 'axios';
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY;
 
+interface NewsArticle {
+  title: string;
+  description: string;
+  url: string;
+  source?: {
+    name: string;
+  };
+  publishedAt: string;
+  urlToImage?: string;
+}
+
+interface NewsApiResponse {
+  articles: NewsArticle[];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -38,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const query = searchTerms[symbol.toUpperCase()] || `${symbol} cryptocurrency`;
 
-    const response = await axios.get('https://newsapi.org/v2/everything', {
+    const response = await axios.get<NewsApiResponse>('https://newsapi.org/v2/everything', {
       params: {
         q: query,
         apiKey: NEWS_API_KEY,
@@ -50,7 +65,7 @@ export async function GET(request: NextRequest) {
     });
 
     const articles = response.data.articles
-      .filter((article: any) => 
+      .filter((article: NewsArticle) => 
         article.title && 
         article.description && 
         !article.title.includes('[Removed]') &&
@@ -65,7 +80,7 @@ export async function GET(request: NextRequest) {
          article.description.toLowerCase().includes('blockchain') ||
          article.description.toLowerCase().includes(symbol.toLowerCase()))
       )
-      .map((article: any) => ({
+      .map((article: NewsArticle) => ({
         title: article.title,
         description: article.description,
         url: article.url,

@@ -25,6 +25,21 @@ interface UseArticleResult {
   scraping: boolean;
 }
 
+interface ApiResponse {
+  success: boolean;
+  article?: Article;
+  error?: string;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
 export function useArticle(slug: string): UseArticleResult {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,17 +56,18 @@ export function useArticle(slug: string): UseArticleResult {
 
         // First, try to get the article with scraping
         setScraping(true);
-        const response = await axios.post('/api/scrape-article', { slug });
-        
+        const response = await axios.post<ApiResponse>('/api/scrape-article', { slug });
+                
         if (response.data.success) {
-          setArticle(response.data.article);
+          setArticle(response.data.article || null);
         } else {
           throw new Error(response.data.error || 'Failed to fetch article');
         }
 
-      } catch (err: any) {
-        console.error('Error fetching article:', err);
-        setError(err.response?.data?.error || err.message || 'Failed to load article');
+      } catch (err: unknown) {
+        const error = err as ApiError;
+        console.error('Error fetching article:', error);
+        setError(error.response?.data?.error || error.message || 'Failed to load article');
       } finally {
         setLoading(false);
         setScraping(false);
